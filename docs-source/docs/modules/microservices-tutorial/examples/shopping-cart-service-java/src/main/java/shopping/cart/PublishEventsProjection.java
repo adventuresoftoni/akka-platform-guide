@@ -10,12 +10,13 @@ import akka.persistence.cassandra.query.javadsl.CassandraReadJournal;
 import akka.persistence.query.Offset;
 import akka.projection.ProjectionBehavior;
 import akka.projection.ProjectionId;
-import akka.projection.cassandra.javadsl.CassandraProjection;
 import akka.projection.eventsourced.EventEnvelope;
 import akka.projection.eventsourced.javadsl.EventSourcedProvider;
 import akka.projection.javadsl.AtLeastOnceProjection;
 import akka.projection.javadsl.SourceProvider;
+import akka.projection.jdbc.javadsl.JdbcProjection;
 import java.util.Optional;
+import javax.persistence.EntityManagerFactory;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
@@ -23,7 +24,7 @@ public final class PublishEventsProjection {
 
   private PublishEventsProjection() {}
 
-  public static void init(ActorSystem<?> system) {
+  public static void init(ActorSystem<?> system, EntityManagerFactory entityManagerFactory) {
     SendProducer<String, byte[]> sendProducer = createProducer(system);
     String topic = system.settings().config().getString("shopping-cart-service.kafka.topic");
 
@@ -33,7 +34,8 @@ public final class PublishEventsProjection {
             "PublishEventsProjection",
             ShoppingCart.TAGS.size(),
             index ->
-                ProjectionBehavior.create(createProjectionFor(system, topic, sendProducer, index)),
+                ProjectionBehavior.create(
+                    createProjectionFor(system, entityManagerFactory, topic, sendProducer, index)),
             ShardedDaemonProcessSettings.create(system),
             Optional.of(ProjectionBehavior.stopMessage()));
   }
@@ -53,6 +55,7 @@ public final class PublishEventsProjection {
   private static AtLeastOnceProjection<Offset, EventEnvelope<ShoppingCart.Event>>
       createProjectionFor(
           ActorSystem<?> system,
+          EntityManagerFactory entityManagerFactory,
           String topic,
           SendProducer<String, byte[]> sendProducer,
           int index) {
@@ -60,9 +63,11 @@ public final class PublishEventsProjection {
     SourceProvider<Offset, EventEnvelope<ShoppingCart.Event>> sourceProvider =
         EventSourcedProvider.eventsByTag(system, CassandraReadJournal.Identifier(), tag);
 
-    return CassandraProjection.atLeastOnce(
+    return JdbcProjection.atLeastOnceAsync(
         ProjectionId.of("PublishEventsProjection", tag),
         sourceProvider,
-        () -> new PublishEventsProjectionHandler(topic, sendProducer));
+        () -> new HibernateJdbcSession(entityManagerFactory.createEntityManager()),
+        () -> new PublishEventsProjectionHandler(topic, sendProducer),
+        system);
   }
 }
