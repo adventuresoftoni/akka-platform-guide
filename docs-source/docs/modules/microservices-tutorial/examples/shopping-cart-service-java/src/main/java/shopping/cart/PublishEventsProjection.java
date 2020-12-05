@@ -16,15 +16,15 @@ import akka.projection.javadsl.AtLeastOnceProjection;
 import akka.projection.javadsl.SourceProvider;
 import akka.projection.jdbc.javadsl.JdbcProjection;
 import java.util.Optional;
-import javax.persistence.EntityManagerFactory;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.orm.jpa.JpaTransactionManager;
 
 public final class PublishEventsProjection {
 
   private PublishEventsProjection() {}
 
-  public static void init(ActorSystem<?> system, EntityManagerFactory entityManagerFactory) {
+  public static void init(ActorSystem<?> system, JpaTransactionManager transactionManager) {
     SendProducer<String, byte[]> sendProducer = createProducer(system);
     String topic = system.settings().config().getString("shopping-cart-service.kafka.topic");
 
@@ -35,7 +35,7 @@ public final class PublishEventsProjection {
             ShoppingCart.TAGS.size(),
             index ->
                 ProjectionBehavior.create(
-                    createProjectionFor(system, entityManagerFactory, topic, sendProducer, index)),
+                    createProjectionFor(system, transactionManager, topic, sendProducer, index)),
             ShardedDaemonProcessSettings.create(system),
             Optional.of(ProjectionBehavior.stopMessage()));
   }
@@ -55,7 +55,7 @@ public final class PublishEventsProjection {
   private static AtLeastOnceProjection<Offset, EventEnvelope<ShoppingCart.Event>>
       createProjectionFor(
           ActorSystem<?> system,
-          EntityManagerFactory entityManagerFactory,
+          JpaTransactionManager transactionManager,
           String topic,
           SendProducer<String, byte[]> sendProducer,
           int index) {
@@ -66,7 +66,7 @@ public final class PublishEventsProjection {
     return JdbcProjection.atLeastOnceAsync(
         ProjectionId.of("PublishEventsProjection", tag),
         sourceProvider,
-        () -> new HibernateJdbcSession(entityManagerFactory.createEntityManager()),
+        () -> new HibernateJdbcSession(transactionManager),
         () -> new PublishEventsProjectionHandler(topic, sendProducer),
         system);
   }

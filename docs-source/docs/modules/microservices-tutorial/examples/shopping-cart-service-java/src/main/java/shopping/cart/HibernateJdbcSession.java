@@ -5,30 +5,43 @@ import akka.projection.jdbc.JdbcSession;
 import java.sql.Connection;
 import java.sql.SQLException;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityTransaction;
 import org.hibernate.Session;
 import org.hibernate.jdbc.ReturningWork;
+import org.springframework.orm.jpa.EntityManagerFactoryUtils;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
-public class HibernateJdbcSession implements JdbcSession {
+public class HibernateJdbcSession extends DefaultTransactionDefinition implements JdbcSession {
 
-  public final EntityManager entityManager;
-  private final EntityTransaction transaction;
+  private final JpaTransactionManager transactionManager;
+  private final TransactionStatus transactionStatus;
 
-  public HibernateJdbcSession(EntityManager entityManager) {
-    this.entityManager = entityManager;
-    this.transaction = this.entityManager.getTransaction();
-    this.transaction.begin();
+  public HibernateJdbcSession(JpaTransactionManager transactionManager) {
+    this.transactionManager = transactionManager;
+    this.transactionStatus = transactionManager.getTransaction(this);
+  }
+
+  public EntityManager entityManager() {
+    return EntityManagerFactoryUtils.getTransactionalEntityManager(transactionManager.getEntityManagerFactory());
   }
 
   @Override
   public <Result> Result withConnection(Function<Connection, Result> func) {
+    EntityManager entityManager = entityManager();
     Session hibernateSession = ((Session) entityManager.getDelegate());
     return hibernateSession.doReturningWork(
         new ReturningWork<Result>() {
           @Override
           public Result execute(Connection connection) throws SQLException {
             try {
-              return func.apply(connection);
+              Result result = func.apply(connection);
+
+              // FIXME tested that this will rollback above offset storage
+//              if (true)
+//                throw new RuntimeException("Simulated exc in doReturningWork");
+
+              return result;
             } catch (SQLException e) {
               throw e;
             } catch (Exception e) {
@@ -40,17 +53,16 @@ public class HibernateJdbcSession implements JdbcSession {
 
   @Override
   public void commit() {
-    transaction.commit();
+    transactionManager.commit(transactionStatus);
   }
 
   @Override
   public void rollback() {
-    // propagates rollback call if transaction is active
-    if (transaction.isActive()) transaction.rollback();
+    transactionManager.rollback(transactionStatus);
   }
 
   @Override
   public void close() {
-    this.entityManager.close();
+    entityManager().close();
   }
 }

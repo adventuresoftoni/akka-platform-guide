@@ -12,8 +12,8 @@ import akka.grpc.GrpcClientSettings;
 // end::SendOrderProjection[]
 import akka.management.cluster.bootstrap.ClusterBootstrap;
 import akka.management.javadsl.AkkaManagement;
-import javax.persistence.EntityManagerFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.orm.jpa.JpaTransactionManager;
 import shopping.cart.proto.ShoppingCartService;
 // tag::SendOrderProjection[]
 import shopping.order.proto.ShoppingOrderService;
@@ -38,8 +38,8 @@ public class Main extends AbstractBehavior<Void> {
     AnnotationConfigApplicationContext springContext = new AnnotationConfigApplicationContext();
     springContext.register(SpringConfig.class);
     springContext.refresh();
-    EntityManagerFactory entityManagerFactory = springContext.getBean(EntityManagerFactory.class);
     ItemPopularityRepository itemPopularityRepository = springContext.getBean(ItemPopularityRepository.class);
+    JpaTransactionManager transactionManager = springContext.getBean(JpaTransactionManager.class);
 
     ActorSystem<?> system = context.getSystem();
 
@@ -53,7 +53,7 @@ public class Main extends AbstractBehavior<Void> {
     ShoppingCart.init(system);
 
     // tag::ItemPopularityProjection[]
-    ItemPopularityProjection.init(system, entityManagerFactory, itemPopularityRepository); // <3>
+    ItemPopularityProjection.init(system, transactionManager, itemPopularityRepository); // <3>
     // end::ItemPopularityProjection[]
 
     String grpcInterface =

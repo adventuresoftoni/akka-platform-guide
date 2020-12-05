@@ -13,7 +13,8 @@ import akka.projection.javadsl.AtLeastOnceProjection;
 import akka.projection.javadsl.SourceProvider;
 import akka.projection.jdbc.javadsl.JdbcProjection;
 import java.util.Optional;
-import javax.persistence.EntityManagerFactory;
+
+import org.springframework.orm.jpa.JpaTransactionManager;
 import shopping.order.proto.ShoppingOrderService;
 
 public class SendOrderProjection {
@@ -22,7 +23,7 @@ public class SendOrderProjection {
 
   public static void init(
       ActorSystem<?> system,
-      EntityManagerFactory entityManagerFactory,
+      JpaTransactionManager transactionManager,
       ShoppingOrderService orderService) {
     ShardedDaemonProcess.get(system)
         .init(
@@ -31,7 +32,7 @@ public class SendOrderProjection {
             ShoppingCart.TAGS.size(),
             index ->
                 ProjectionBehavior.create(
-                    createProjectionsFor(system, entityManagerFactory, orderService, index)),
+                    createProjectionsFor(system, transactionManager, orderService, index)),
             ShardedDaemonProcessSettings.create(system),
             Optional.of(ProjectionBehavior.stopMessage()));
   }
@@ -39,7 +40,7 @@ public class SendOrderProjection {
   private static AtLeastOnceProjection<Offset, EventEnvelope<ShoppingCart.Event>>
       createProjectionsFor(
           ActorSystem<?> system,
-          EntityManagerFactory entityManagerFactory,
+          JpaTransactionManager transactionManager,
           ShoppingOrderService orderService,
           int index) {
     String tag = ShoppingCart.TAGS.get(index);
@@ -49,7 +50,7 @@ public class SendOrderProjection {
     return JdbcProjection.atLeastOnceAsync(
         ProjectionId.of("SendOrderProjection", tag),
         sourceProvider,
-        () -> new HibernateJdbcSession(entityManagerFactory.createEntityManager()),
+        () -> new HibernateJdbcSession(transactionManager),
         () -> new SendOrderProjectionHandler(system, orderService),
         system);
   }
