@@ -6,7 +6,7 @@ import akka.cluster.sharding.typed.ShardedDaemonProcessSettings;
 import akka.cluster.sharding.typed.javadsl.ShardedDaemonProcess;
 import akka.kafka.ProducerSettings;
 import akka.kafka.javadsl.SendProducer;
-import akka.persistence.cassandra.query.javadsl.CassandraReadJournal;
+import akka.persistence.jdbc.query.javadsl.JdbcReadJournal;
 import akka.persistence.query.Offset;
 import akka.projection.ProjectionBehavior;
 import akka.projection.ProjectionId;
@@ -15,10 +15,11 @@ import akka.projection.eventsourced.javadsl.EventSourcedProvider;
 import akka.projection.javadsl.AtLeastOnceProjection;
 import akka.projection.javadsl.SourceProvider;
 import akka.projection.jdbc.javadsl.JdbcProjection;
-import java.util.Optional;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.orm.jpa.JpaTransactionManager;
+
+import java.util.Optional;
 
 public final class PublishEventsProjection {
 
@@ -61,7 +62,7 @@ public final class PublishEventsProjection {
           int index) {
     String tag = ShoppingCart.TAGS.get(index);
     SourceProvider<Offset, EventEnvelope<ShoppingCart.Event>> sourceProvider =
-        EventSourcedProvider.eventsByTag(system, CassandraReadJournal.Identifier(), tag);
+        EventSourcedProvider.eventsByTag(system, JdbcReadJournal.Identifier(), tag);
 
     return JdbcProjection.atLeastOnceAsync(
         ProjectionId.of("PublishEventsProjection", tag),

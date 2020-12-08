@@ -6,16 +6,16 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 public class AsyncItemPopularityRepository {
-    private final Executor blockingExector;
+    private final Executor blockingExecutor;
     private final ItemPopularityRepository repository;
 
-    public AsyncItemPopularityRepository(Executor blockingExector, ItemPopularityRepository repository) {
-        this.blockingExector = blockingExector;
+    public AsyncItemPopularityRepository(Executor blockingExecutor, ItemPopularityRepository repository) {
+        this.blockingExecutor = blockingExecutor;
         this.repository = repository;
     }
 
     public CompletionStage<Optional<ItemPopularity>> findById(String itemId) {
         return CompletableFuture.supplyAsync(
-                () -> repository.findById(itemId), blockingExector);
+                () -> repository.findById(itemId), blockingExecutor);
     }
 }

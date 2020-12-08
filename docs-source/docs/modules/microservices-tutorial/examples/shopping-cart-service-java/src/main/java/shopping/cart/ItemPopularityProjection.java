@@ -4,7 +4,7 @@ package shopping.cart;
 import akka.actor.typed.ActorSystem;
 import akka.cluster.sharding.typed.ShardedDaemonProcessSettings;
 import akka.cluster.sharding.typed.javadsl.ShardedDaemonProcess;
-import akka.persistence.cassandra.query.javadsl.CassandraReadJournal;
+import akka.persistence.jdbc.query.javadsl.JdbcReadJournal;
 import akka.persistence.query.Offset;
 import akka.projection.ProjectionBehavior;
 import akka.projection.ProjectionId;
@@ -17,7 +17,7 @@ import org.springframework.orm.jpa.JpaTransactionManager;
 
 import java.util.Optional;
 
-public final class  ItemPopularityProjection {
+public final class ItemPopularityProjection {
 
   private ItemPopularityProjection() {}
 
@@ -25,9 +25,6 @@ public final class  ItemPopularityProjection {
   public static void init(
           ActorSystem<?> system,
           JpaTransactionManager transactionManager, ItemPopularityRepository repository) {
-    // FIXME remove
-    JdbcProjection.createOffsetTableIfNotExists(
-        () -> new HibernateJdbcSession(transactionManager), system);
 
     ShardedDaemonProcess.get(system)
         .init( // <1>
@@ -52,7 +49,7 @@ public final class  ItemPopularityProjection {
     SourceProvider<Offset, EventEnvelope<ShoppingCart.Event>> sourceProvider = // <3>
         EventSourcedProvider.eventsByTag(
             system,
-            CassandraReadJournal.Identifier(), // <4>
+            JdbcReadJournal.Identifier(), // <4>
             tag);
 
     return JdbcProjection.exactlyOnce( // <5>

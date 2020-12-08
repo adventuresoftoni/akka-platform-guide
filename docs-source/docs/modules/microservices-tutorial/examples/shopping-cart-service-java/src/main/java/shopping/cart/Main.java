@@ -35,9 +35,7 @@ public class Main extends AbstractBehavior<Void> {
   public Main(ActorContext<Void> context) {
     super(context);
 
-    AnnotationConfigApplicationContext springContext = new AnnotationConfigApplicationContext();
-    springContext.register(SpringConfig.class);
-    springContext.refresh();
+    AnnotationConfigApplicationContext springContext = new AnnotationConfigApplicationContext(SpringConfig.class);
     ItemPopularityRepository itemPopularityRepository = springContext.getBean(ItemPopularityRepository.class);
     JpaTransactionManager transactionManager = springContext.getBean(JpaTransactionManager.class);
 
@@ -63,12 +61,12 @@ public class Main extends AbstractBehavior<Void> {
     ShoppingCartServer.start(grpcInterface, grpcPort, system, grpcService);
 
     // tag::PublishEventsProjection[]
-//    PublishEventsProjection.init(system, entityManagerFactory);
+//    PublishEventsProjection.init(system, transactionManager);
     // end::PublishEventsProjection[]
 
     // tag::SendOrderProjection[]
 //    ShoppingOrderService orderService = orderServiceClient(system);
-//    SendOrderProjection.init(system, entityManagerFactory, orderService);
+//    SendOrderProjection.init(system, transactionManager, orderService);
 
     // end::SendOrderProjection[]
   }
