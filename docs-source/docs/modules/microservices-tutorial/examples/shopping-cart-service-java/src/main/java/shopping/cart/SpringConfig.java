@@ -14,28 +14,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.sql.DataSource;
+import java.util.Objects;
 import java.util.Properties;
 
 @Configuration
 @EnableJpaRepositories
 @EnableTransactionManagement
 public class SpringConfig {
-
-//  @Bean
-//  public DataSource dataSource() {
-//    EmbeddedDatabaseBuilder builder = new EmbeddedDatabaseBuilder();
-//    return builder.setType(EmbeddedDatabaseType.HSQL).build();
-//  }
-
-  @Bean
-  public DataSource dataSource(){
-      DriverManagerDataSource dataSource = new DriverManagerDataSource();
-      dataSource.setDriverClassName("org.postgresql.Driver");
-      dataSource.setUrl("jdbc:postgresql://localhost:5432/shopping-cart?reWriteBatchedInserts=true");
-      dataSource.setUsername( "shopping-cart" );
-      dataSource.setPassword("shopping-cart");
-      return dataSource;
-  }
 
   @Bean
   public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
@@ -46,28 +31,14 @@ public class SpringConfig {
     LocalContainerEntityManagerFactoryBean factory = new LocalContainerEntityManagerFactoryBean();
     factory.setJpaVendorAdapter(vendorAdapter);
     factory.setPackagesToScan("shopping.cart");
-    factory.setDataSource(dataSource());
-    factory.setJpaProperties(additionalProperties());
+    factory.setPersistenceUnitName("shopping-cart-hibernate"); // see META-INF/persistence.xml
+
     return factory;
-  }
-
-  Properties additionalProperties() {
-    Properties properties = new Properties();
-    properties.setProperty("hibernate.default-access", "field");
-    properties.setProperty("hibernate.default-lazy", "false");
-    properties.setProperty("hibernate.hbm2ddl.auto", "create-drop");
-//    properties.setProperty("hibernate.dialect", "org.hibernate.dialect.HSQLDialect");
-    properties.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
-
-    return properties;
   }
 
   @Bean
   public PlatformTransactionManager transactionManager() {
-    JpaTransactionManager transactionManager = new JpaTransactionManager();
-    transactionManager.setEntityManagerFactory(entityManagerFactory().getObject());
-
-    return transactionManager;
+    return new JpaTransactionManager(Objects.requireNonNull(entityManagerFactory().getObject()));
   }
 
   @Bean
